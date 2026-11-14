@@ -28,6 +28,9 @@
     "packages/decision/tests/types/options.ts",
     "packages/acp/tests/fixtures/scripted-agent.ts",
     "packages/acp/tests/live/*.ts",
+    "packages/cua/smoke/e2e.config.ts",
+    "packages/cua/smoke/tests/*.ts",
+    "packages/cua/smoke/dump.mjs",
     "packages/e2e/tests/live/*.ts",
     "packages/e2e/src/config/register.ts"
   ],

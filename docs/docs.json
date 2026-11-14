@@ -74,6 +74,7 @@
             "pages": [
               "web",
               "mobile",
+              "windows",
               "api-testing"
             ]
           },

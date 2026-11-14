@@ -1,0 +1,135 @@
+---
+title: Windows
+description: Test a Windows desktop app with the Cua Driver engine, and know what differs from the web.
+---
+
+`@e2e-dev/cua` runs tests against Windows desktop apps: Win32, WPF, WinUI,
+Electron, and Tauri. It reads the app's window through UI Automation with
+[Cua Driver](https://github.com/trycua/cua/tree/main/libs/cua-driver), so
+tests use the same `agent`, `screen`, and `expect` APIs as browser tests.
+
+## Set up
+
+Run the tests in an interactive Windows session: a console or RDP login,
+not a service in session 0. Install the packages:
+
+<CodeGroup>
+```bash npm
+npm install --save-dev e2e @e2e-dev/cua
+```
+
+```bash pnpm
+pnpm add --save-dev e2e @e2e-dev/cua
+```
+
+```bash bun
+bun add --dev e2e @e2e-dev/cua
+```
+</CodeGroup>
+
+`@e2e-dev/cua` installs Cua Driver's native library for your architecture
+(x64 or arm64) from npm and loads it in the test process. No daemon or
+separate install is needed.
+
+Point a target at the app:
+
+```ts title="e2e.config.ts"
+import type { E2EConfig } from 'e2e';
+import { cua } from '@e2e-dev/cua';
+
+export default {
+  targets: [
+    { name: 'notepad', engine: cua(), app: { bundleId: 'notepad.exe' } },
+  ],
+} satisfies E2EConfig;
+```
+
+`app.bundleId` takes one of these:
+
+- A packaged app's AUMID, such as `Microsoft.WindowsCalculator_8wekyb3d8bbwe!App`.
+- An executable path, or an executable on the `PATH`, such as `notepad.exe`.
+- A display name from the Start menu, such as `Paint`.
+
+Use `app.appPath` for a build in your project, relative to the config. `app.launchArguments` are passed to every launch.
+
+## Write a test
+
+```ts title="tests/notepad.e2e.ts"
+import { expect } from 'e2e';
+import { test } from '@e2e-dev/cua';
+
+test('a note can be typed and saved', async ({ app, screen, desktop, agent }) => {
+  await app.open();
+  await screen.getByRole('textbox', { name: 'Text editor' }).fill('Hello from e2e');
+  await desktop.hotkey('Control+s');
+  await expect(screen.getByRole('button', { name: 'Save' })).toBeVisible();
+  await agent.act('save the note as hello.txt in Documents');
+});
+```
+
+`app.open()` launches the app fresh and waits for its window. The app is
+closed when the test ends. `test` from `@e2e-dev/cua` is e2e's `test` with
+the `desktop` fixture typed.
+
+## What the engine sees
+
+Each observation reads the app's front window. When the app opens a dialog,
+such as **Save As** or a message box, the dialog is what `screen` and the
+agent see until it closes.
+
+| UI Automation | Contract |
+| --- | --- |
+| Control type (`Button`, `Edit`, `CheckBox`) | `role` (`button`, `textbox`, `checkbox`), with the control type in the `controlType` attribute |
+| Name | `name`. `Text` rows are also `text`, so `getByText` finds labels |
+| AutomationId | `testId`, what `getByTestId` matches |
+| Value pattern | `value`, what `toHaveValue` reads |
+| Toggle state | `checked` on check boxes, radio buttons, and toggle buttons |
+| Selection item state | `selected` on list, tree, and tab items |
+| Enabled | `disabled` when false |
+
+Rects are in the pixels of the window's screenshot, so `tapAt` and the
+agent's pixel tools take points from that image.
+
+## The desktop fixture
+
+| Method | Does |
+| --- | --- |
+| `desktop.locator(selector)` | A locator from a desktop selector, for nodes `screen` queries can't name |
+| `desktop.menu(path)` | Invokes an application-menu path: `['File', 'Save As...']` |
+| `desktop.hotkey(chord)` | Sends a chord in the [key grammar](/reference/engine#keys): `Control+s`, `Alt+F4` |
+| `desktop.window()` | The window the engine drives: its title and bounds |
+| `desktop.windows()` | Every window the app has open |
+
+A selector is space-separated terms that must all hold: `id=` (AutomationId),
+`type=` (control type), `role=`, `name=` (exact), and `name~=` (contains,
+case-insensitive). Quote values with spaces:
+
+```ts
+await desktop.locator('type=Edit name~="file name"').fill('hello.txt');
+```
+
+## Options
+
+| Option | Default | Does |
+| --- | --- | --- |
+| `window` | the front window | A string the title contains, or a `RegExp`, to pick the window the app opens with |
+| `delivery` | `'foreground'` | `'foreground'` briefly brings the window forward for input and gives focus back after. `'background'` never takes focus; controls that drop background input, such as Chromium content, fail with `NOT_ACTIONABLE` |
+| `maxElements` | `1000` | Most UI Automation rows one observation reads; a larger tree is reported as truncated |
+| `launchTimeoutMs` | `30000` | How long `app.open()` waits for the window |
+
+## What differs from the web
+
+- One worker per machine. A desktop has one pointer and one keyboard.
+- `hover`, `longPress`, `scrollIntoView`, and `setInputFiles` aren't
+  supported. Use the file dialog the app opens instead of `setInputFiles`.
+- `selectOption` selects a combo box item by its label only.
+- `fill` sets the value through UI Automation when the control supports it.
+  Otherwise it clicks the field, selects its text, and types.
+- Secure fields aren't detected: UI Automation doesn't report a password
+  box as one. A test's own `fill(secret)` works. The agent's `type_secret`
+  is refused, because no field qualifies as a password field. Screenshots
+  aren't masked.
+- `app.back()`, `app.clearState()`, and saved state aren't supported.
+- A packaged app whose window belongs to a host process, such as a UWP app
+  in `ApplicationFrameHost`, may show no window for its own process. Then
+  `app.open()` fails with the launch timeout.

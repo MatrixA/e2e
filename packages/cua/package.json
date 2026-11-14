@@ -1,0 +1,72 @@
+{
+  "name": "@e2e-dev/cua",
+  "version": "0.0.0",
+  "description": "Windows desktop engine for e2e: native, WPF, WinUI, Electron, and Tauri apps through Cua Driver's UI Automation",
+  "keywords": [
+    "e2e",
+    "end-to-end",
+    "testing",
+    "ai-testing",
+    "cua",
+    "computer-use",
+    "desktop",
+    "windows",
+    "ui-automation",
+    "engine"
+  ],
+  "license": "Apache-2.0",
+  "contributors": [
+    "Oskar Kwaśniewski <oskar@tester.army>",
+    "Szymon Rybczak <szymon@tester.army>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/e2e-inc/e2e.git",
+    "directory": "packages/cua"
+  },
+  "bugs": {
+    "url": "https://github.com/e2e-inc/e2e/issues"
+  },
+  "homepage": "https://github.com/e2e-inc/e2e/tree/main/packages/cua#readme",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc --project tsconfig.build.json && node ../../scripts/stamp-dist.ts",
+    "prepublishOnly": "node ../../scripts/check-dist.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "smoke": "e2e run --config smoke/e2e.config.ts",
+    "smoke:dump": "node smoke/dump.mjs"
+  },
+  "dependencies": {
+    "@trycua/cua-driver": "0.49.9"
+  },
+  "peerDependencies": {
+    "e2e": ">=0.23.0 <1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "e2e": "workspace:*",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  },
+  "engines": {
+    "node": "^22.22.3 || >=24.8.0"
+  }
+}
